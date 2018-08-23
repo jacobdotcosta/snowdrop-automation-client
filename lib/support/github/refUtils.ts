@@ -1,10 +1,9 @@
 import {logger} from "@atomist/automation-client/internal/util/logger";
+import compareVersions = require("compare-versions");
 import {SNOWDROP_ORG} from "../../constants";
 import {githubApi} from "./githubApi";
 
 /**
- * Booster repos are repos that contain the "booster" Github topic
- *
  * @return the sha of the latest commit if everything goes well, if something went wrong
  */
 export async function getShaOfLatestCommit(repo: string, branch: string,
@@ -22,6 +21,31 @@ export async function getShaOfLatestCommit(repo: string, branch: string,
     logger.info(`Branch '${branch}' does not exists`);
     return undefined;
   }
+}
+
+/**
+ * @param tagFilter A predicate to filter tags. if not specified all tags will be used
+ * @param tagSort A function to compare tag values which is used to sort tags.
+ *        If not specified, compareVersions is used
+ * @return the tags that are associated to a booster
+ */
+export async function getTags(repo: string,
+                              token?: string,
+                              tagFilter?: (t: string) => boolean,
+                              tagSort?: (a: string, b: string) => number): Promise<string[]> {
+  const filter = tagFilter ? tagFilter : () => true;
+  const sort = tagSort ? tagSort : compareVersions;
+  const tagsRegex = /refs\/tags\/(.+)/;
+
+  const params = {owner: SNOWDROP_ORG, repo, per_page: 1000};
+  const response = await githubApi(token).gitdata.getTags(params);
+  const data = response.data as any[];
+  return data
+          .map(r => r.ref as string)
+          .filter(t => tagsRegex.test(t))
+          .map(r => r.match(tagsRegex)[1])
+          .filter(filter)
+          .sort(sort);
 }
 
 /**
