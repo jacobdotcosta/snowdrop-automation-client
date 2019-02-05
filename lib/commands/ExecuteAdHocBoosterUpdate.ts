@@ -13,7 +13,7 @@ import {
   success,
 } from "@atomist/automation-client";
 import {editAll} from "@atomist/automation-client/operations/edit/editAll";
-import {PullRequest} from "@atomist/automation-client/operations/edit/editModes";
+import {BranchCommit} from "@atomist/automation-client/operations/edit/editModes";
 import {AnyProjectEditor} from "@atomist/automation-client/operations/edit/projectEditor";
 import axios from "axios";
 import * as ts from "typescript";
@@ -59,9 +59,9 @@ export class ExecuteAdHocBoosterUpdate implements HandleCommand {
   @Parameter({
     displayName: "branch",
     description: "The name of branch where the change will be made",
-    required: false,
+    required: true,
   })
-  public branch: string = "adhoc-update";
+  public branch: string;
 
   @Parameter({
     displayName: "commit title",
@@ -102,9 +102,9 @@ export class ExecuteAdHocBoosterUpdate implements HandleCommand {
         context,
         {token: params.githubToken},
         editor,
-        new PullRequest(this.branch, params.commitTitle),
+        {branch: this.branch, message: params.commitTitle} as BranchCommit,
         undefined,
-        allReposInTeam(),
+        allReposInTeam(this.branch),
         boosterRepos(params.githubToken),
     ).then(success, failure);
   }
